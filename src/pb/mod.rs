@@ -5,7 +5,9 @@ mod abi;
 use super::command_request::RequestData;
 use crate::error::*;
 pub use abi::*;
+use bytes::Bytes;
 use http::StatusCode; // 使用状态码
+use std::str;
 
 // 类型的生成，两种方式，一种是直接创建，另一种是由其他类型转换而来
 impl CommandRequest {
@@ -109,5 +111,29 @@ impl From<i64> for Value {
         Self {
             value: Some(value::Value::Integer(i)),
         }
+    }
+}
+
+impl TryFrom<&[u8]> for Value {
+    type Error = KvError;
+
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
+        let s = str::from_utf8(data).unwrap();
+        Ok(Self {
+            value: Some(value::Value::String(s.to_string())),
+        })
+    }
+}
+
+// 只把String转为Vec<u8>
+impl TryFrom<Value> for Vec<u8> {
+    type Error = KvError;
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        let s = match v.value {
+            Some(value::Value::String(s)) => s,
+            _ => "".to_string(),
+        };
+        let s: Vec<u8> = s.as_bytes().to_vec();
+        Ok(s)
     }
 }

@@ -4,6 +4,7 @@
 // 使用thiserror定义自己的错误类型,用Error宏,新的Error是枚举，包含了所有可能的错误
 // 注意用法
 use crate::Value;
+use sled;
 use std::fmt::Error as StdError;
 use thiserror::Error;
 
@@ -32,5 +33,18 @@ pub enum KvError {
 impl From<StdError> for KvError {
     fn from(value: StdError) -> Self {
         KvError::InvalidCommand("Invalid Command".to_string())
+    }
+}
+
+impl From<sled::Error> for KvError {
+    fn from(value: sled::Error) -> Self {
+        match value {
+            sled::Error::CollectionNotFound(_) => KvError::NotFound(
+                "can not find table".to_string(),
+                "can not find key".to_string(),
+            ),
+            sled::Error::Unsupported(_) => KvError::InvalidCommand("Invalid Command".to_string()),
+            _ => KvError::Internal("Internal error".to_string()),
+        }
     }
 }
