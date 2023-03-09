@@ -5,7 +5,8 @@
 // 注意用法
 use crate::Value;
 use sled;
-use std::fmt::Error as StdError;
+use std::fmt::Error as FmtError;
+use std::io::Error as IoError;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
@@ -28,10 +29,18 @@ pub enum KvError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("frame error")]
+    FrameError,
 }
 
-impl From<StdError> for KvError {
-    fn from(value: StdError) -> Self {
+impl From<FmtError> for KvError {
+    fn from(value: FmtError) -> Self {
+        KvError::InvalidCommand("Invalid Command".to_string())
+    }
+}
+impl From<IoError> for KvError {
+    fn from(value: IoError) -> Self {
         KvError::InvalidCommand("Invalid Command".to_string())
     }
 }
