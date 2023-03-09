@@ -7,10 +7,13 @@ edition = "2021"
 bytes = "1" # 高效处理网络 buffer 的库
 dashmap = "4" # 并发 HashMap
 http = "0.2" # 我们使用 HTTP status code 所以引入这个类型库
+pkg-config = "0.3.26"
 prost = "0.9" # 处理 protobuf 的代码
+serde = {version = "1.0.154",  features = ["derive"]}
 sled = "0.34"
 tempfile = "3.4.0"
 thiserror = "1" # 错误定义和处理
+tokio-util = {version ="0.6",features = ["codec"]}
 tracing = "0.1" # 日志处理
 
 [dev-dependencies]
