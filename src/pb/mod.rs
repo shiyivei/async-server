@@ -1,7 +1,8 @@
 //! 指令集模块
-//!
+//! 在Rust中一种类型到另一种类型的转换先写为v1.into,然后实现 impl From<V1> for V2
 
 mod abi;
+use super::command_request::RequestData;
 use crate::error::*;
 pub use abi::*;
 use http::StatusCode; // 使用状态码
@@ -10,9 +11,27 @@ use http::StatusCode; // 使用状态码
 impl CommandRequest {
     pub fn new_hset(table: impl Into<String>, key: impl Into<String>, value: Value) -> Self {
         Self {
-            request_data: Some(abi::command_request::RequestData::Hset(Hset {
+            request_data: Some(RequestData::Hset(Hset {
                 table: table.into(),
                 pair: Some(Kvpair::new(key, value)),
+            })),
+        }
+    }
+    /// 创建 HGET 命令,代表了一种可以转为字String的类型
+    pub fn new_hget(table: impl Into<String>, key: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hget(Hget {
+                table: table.into(),
+                key: key.into(),
+            })),
+        }
+    }
+
+    /// 创建 HGETALL 命令，这种1
+    pub fn new_hgetall(table: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hgetall(Hgetall {
+                table: table.into(),
             })),
         }
     }
@@ -70,5 +89,25 @@ impl From<KvError> for CommandResponse {
         }
 
         result
+    }
+}
+
+/// 从 Vec<Kvpair> 转换成 CommandResponse
+impl From<Vec<Kvpair>> for CommandResponse {
+    fn from(v: Vec<Kvpair>) -> Self {
+        Self {
+            status: StatusCode::OK.as_u16() as _,
+            pairs: v,
+            ..Default::default()
+        }
+    }
+}
+
+/// 从 i64转换成 Value
+impl From<i64> for Value {
+    fn from(i: i64) -> Self {
+        Self {
+            value: Some(value::Value::Integer(i)),
+        }
     }
 }

@@ -10,7 +10,7 @@ use thiserror::Error;
 #[derive(Debug, Error, PartialEq)]
 pub enum KvError {
     // 使用字段属性定义错误内容
-    #[error("Not found for table: {},key: {1}")]
+    #[error("Not found for table: {0},key: {1}")]
     NotFound(String, String),
     #[error("Cannot parse command: `{0}`")]
     InvalidCommand(String),
@@ -18,14 +18,13 @@ pub enum KvError {
     ConvertError(Value, &'static str),
     #[error("Cannot process command {0} with table: {1}, key: {2}. Error: {}")]
     StorageError(&'static str, String, String, String),
-    #[error("frame error")]
-    FrameError,
 
     //使用第三发库的具体Error类型
     #[error("Failed to encode protobuf message")]
     EncodeError(#[from] prost::EncodeError),
     #[error("Failed to decode protobuf message")]
     DecodeError(#[from] prost::DecodeError),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }
