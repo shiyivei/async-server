@@ -39,6 +39,51 @@ impl CommandRequest {
             })),
         }
     }
+
+    pub fn new_hmset(table: impl Into<String>, pairs: Vec<Kvpair>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hmset(Hmset {
+                table: table.into(),
+                pairs,
+            })),
+        }
+    }
+
+    pub fn new_hdel(table: impl Into<String>, key: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hdel(Hdel {
+                table: table.into(),
+                key: key.into(),
+            })),
+        }
+    }
+
+    pub fn new_hmdel(table: impl Into<String>, keys: Vec<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hmdel(Hmdel {
+                table: table.into(),
+                keys,
+            })),
+        }
+    }
+
+    pub fn new_hexist(table: impl Into<String>, key: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hexist(Hexist {
+                table: table.into(),
+                key: key.into(),
+            })),
+        }
+    }
+
+    pub fn new_hmexist(table: impl Into<String>, keys: Vec<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Hmexist(Hmexist {
+                table: table.into(),
+                keys,
+            })),
+        }
+    }
 }
 
 impl Kvpair {
@@ -137,5 +182,29 @@ impl TryFrom<Value> for Vec<u8> {
         };
         let s: Vec<u8> = s.as_bytes().to_vec();
         Ok(s)
+    }
+}
+
+impl<const N: usize> From<&[u8; N]> for Value {
+    fn from(buf: &[u8; N]) -> Self {
+        Bytes::copy_from_slice(&buf[..]).into()
+    }
+}
+
+impl From<Bytes> for Value {
+    fn from(buf: Bytes) -> Self {
+        Self {
+            value: Some(value::Value::Binary(buf)),
+        }
+    }
+}
+
+impl From<Vec<Value>> for CommandResponse {
+    fn from(v: Vec<Value>) -> Self {
+        Self {
+            status: StatusCode::OK.as_u16() as _,
+            values: v,
+            ..Default::default()
+        }
     }
 }
