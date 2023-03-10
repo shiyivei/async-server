@@ -131,6 +131,33 @@ fn decode_header(header: usize) -> (usize, bool) {
     (len, compressed)
 }
 
+pub async fn read_frame<S>(stream: &mut S, buf: &mut BytesMut) -> Result<(), KvError>
+where
+    S: AsyncRead + Unpin + Send,
+{
+    // 拿到头
+    let header = stream.read_u32().await? as usize;
+
+    // 检查是否压缩
+    let (len, _compressed) = decode_header(header);
+
+    // 分配内存
+    buf.reserve(LEN_LEN + len);
+
+    // 放入头
+    buf.put_u32(header as _);
+    // advance_mut 是 unsafe 的原因是，从当前位置 pos 到 pos + len，
+    // 这段内存目前没有初始化。我们就是为了 reserve 这段内存，然后从 stream
+    // 里读取，读取完，它就是初始化的。所以，我们这么用是安全的
+
+    unsafe { buf.advance_mut(len) };
+
+    // 从头开始读
+    stream.read_exact(&mut buf[LEN_LEN..]).await?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
 
