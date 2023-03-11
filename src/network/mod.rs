@@ -1,4 +1,5 @@
 mod frame;
+mod multiplex;
 mod stream;
 mod tls;
 pub use frame::*;
