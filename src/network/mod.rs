@@ -1,6 +1,8 @@
 mod frame;
+mod tls;
 
 pub use frame::*;
+pub use tls::*;
 
 use prost::Message;
 
@@ -79,6 +81,8 @@ where
         let encoded = buf.freeze();
 
         self.inner.write_all(&encoded[..]).await?;
+
+        info!("send cmd {:?}", msg);
 
         Ok(())
     }

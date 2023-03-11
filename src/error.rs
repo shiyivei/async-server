@@ -3,9 +3,9 @@
 
 // 使用thiserror定义自己的错误类型,用Error宏,新的Error是枚举，包含了所有可能的错误
 // 注意用法
+// 使用实现
 use crate::Value;
 use sled;
-use std::fmt::Error as FmtError;
 use std::io::Error as IoError;
 use thiserror::Error;
 
@@ -30,30 +30,44 @@ pub enum KvError {
     #[error("Internal error: {0}")]
     Internal(String),
 
+    #[error("Invalid command error")]
+    FmtError(#[from] std::fmt::Error),
+
     #[error("frame error")]
     FrameError,
+    #[error("Failed to access sled db")]
+    SledError(#[from] sled::Error),
+
+    // #[error("I/O error")]
+    // IoError(#[from] std::io::Error),
+    #[error("certificate parse error server: {0}, cert: {1}")]
+    CertificateParseError(&'static str, &'static str),
+
+    #[error("TLS error")]
+    TlsError(#[from] tokio_rustls::rustls::TLSError),
 }
 
-impl From<FmtError> for KvError {
-    fn from(value: FmtError) -> Self {
-        KvError::InvalidCommand("Invalid Command".to_string())
-    }
-}
+// impl From<FmtError> for KvError {
+//     fn from(value: FmtError) -> Self {
+//         KvError::InvalidCommand("Invalid Command".to_string())
+//     }
+// }
+
 impl From<IoError> for KvError {
     fn from(value: IoError) -> Self {
         KvError::InvalidCommand("Invalid Command".to_string())
     }
 }
 
-impl From<sled::Error> for KvError {
-    fn from(value: sled::Error) -> Self {
-        match value {
-            sled::Error::CollectionNotFound(_) => KvError::NotFound(
-                "can not find table".to_string(),
-                "can not find key".to_string(),
-            ),
-            sled::Error::Unsupported(_) => KvError::InvalidCommand("Invalid Command".to_string()),
-            _ => KvError::Internal("Internal error".to_string()),
-        }
-    }
-}
+// impl From<sled::Error> for KvError {
+//     fn from(value: sled::Error) -> Self {
+//         match value {
+//             sled::Error::CollectionNotFound(_) => KvError::NotFound(
+//                 "can not find table".to_string(),
+//                 "can not find key".to_string(),
+//             ),
+//             sled::Error::Unsupported(_) => KvError::InvalidCommand("Invalid Command".to_string()),
+//             _ => KvError::Internal("Internal error".to_string()),
+//         }
+//     }
+// }
