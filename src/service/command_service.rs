@@ -6,8 +6,20 @@
 use crate::error::*;
 use crate::pb::*;
 use crate::storage::*;
+
 pub trait CommandService {
     fn execute(self, store: &impl Storage) -> CommandResponse;
+}
+
+use std::pin::Pin;
+use std::sync::Arc;
+
+use super::top::Topic;
+use futures::Stream;
+
+pub type StreamingResponse = Pin<Box<dyn Stream<Item = Arc<CommandResponse>> + Send>>;
+pub trait TopicService {
+    fn execute(self, chan: &impl Topic) -> StreamingResponse;
 }
 
 // 为指令实现trait中定义的方法
@@ -43,6 +55,82 @@ impl CommandService for Hset {
             },
             None => Value::default().into(),
         }
+    }
+}
+
+impl CommandService for Hmget {
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        self.keys
+            .iter()
+            .map(|key| match store.get(&self.table, key) {
+                Ok(Some(v)) => v,
+                _ => Value::default(),
+            })
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
+impl CommandService for Hmset {
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        let pairs = self.pairs;
+        let table = self.table;
+        pairs
+            .into_iter()
+            .map(|pair| {
+                let result = store.set(&table, pair.key, pair.value.unwrap_or_default());
+                match result {
+                    Ok(Some(v)) => v,
+                    _ => Value::default(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
+impl CommandService for Hdel {
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        match store.del(&self.table, &self.key) {
+            Ok(Some(v)) => v.into(),
+            Ok(None) => Value::default().into(),
+            Err(e) => e.into(),
+        }
+    }
+}
+
+impl CommandService for Hmdel {
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        self.keys
+            .iter()
+            .map(|key| match store.del(&self.table, key) {
+                Ok(Some(v)) => v,
+                _ => Value::default(),
+            })
+            .collect::<Vec<_>>()
+            .into()
+    }
+}
+
+impl CommandService for Hexist {
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        match store.contains(&self.table, &self.key) {
+            Ok(v) => Value::from(v).into(),
+            Err(e) => e.into(),
+        }
+    }
+}
+
+impl CommandService for Hmexist {
+    fn execute(self, store: &impl Storage) -> CommandResponse {
+        self.keys
+            .iter()
+            .map(|key| match store.contains(&self.table, key) {
+                Ok(v) => v.into(),
+                _ => Value::default(),
+            })
+            .collect::<Vec<Value>>()
+            .into()
     }
 }
 

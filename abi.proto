@@ -15,7 +15,19 @@ message CommandRequest {
     Hmdel hmdel = 7;
     Hexist hexist = 8;
     Hmexist hmexist = 9;
+    Subscribe subscribe = 10;
+    Unsubscribe unsubscribe = 11;
+    Publish publish = 12;
   }
+}
+
+// subscribe 某个主题，任何发布到这个主题的数据都会被收到
+
+message Subscribe {string topic = 1;}
+message Unsubscribe {string topic =1;uint32 id = 2;}
+message Publish {
+  string topic =1;
+  repeated Value data = 2;
 }
 
 // 服务器的响应

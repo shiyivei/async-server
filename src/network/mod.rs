@@ -2,13 +2,15 @@ mod frame;
 mod multiplex;
 mod stream;
 mod tls;
+use super::*;
+use crate::error::KvError;
 pub use frame::*;
 use prost::Message;
 pub use stream::*;
-pub use tls::*;
 
-use super::*;
-use crate::error::KvError;
+mod stream_result;
+use stream_result::StreamResult;
+pub use tls::*;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
 use crate::service::Service;
@@ -53,8 +55,9 @@ where
 
         while let Some(Ok(cmd)) = stream.next().await {
             info!("Got a new command {:?}", cmd);
-            let res = self.service.execute(cmd);
-            stream.send(res).await.unwrap();
+            let mut res = self.service.execute(cmd);
+            let data = res.next().await.unwrap();
+            stream.send(&data).await.unwrap();
         }
 
         Ok(())
@@ -80,7 +83,7 @@ where
 
 impl<S> ProstClientStream<S>
 where
-    S: AsyncRead + AsyncWrite + Send + Unpin,
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     pub fn new(stream: S) -> Self {
         Self {
@@ -88,7 +91,10 @@ where
         }
     }
 
-    pub async fn execute(&mut self, cmd: CommandRequest) -> Result<CommandResponse, KvError> {
+    pub async fn execute_unary(
+        &mut self,
+        cmd: &CommandRequest,
+    ) -> Result<CommandResponse, KvError> {
         // self.send(cmd).await?;
         // Ok(self.recv().await?)
 
@@ -100,6 +106,17 @@ where
             Some(v) => v,
             None => Err(KvError::Internal("Didn't get any response".into())),
         }
+    }
+    pub async fn execute_streaming(self, cmd: &CommandRequest) -> Result<StreamResult, KvError> {
+        // self.send(cmd).await?;
+        // Ok(self.recv().await?)
+
+        let mut stream = self.inner;
+
+        stream.send(cmd).await?;
+        stream.close().await?;
+
+        StreamResult::new(stream).await
     }
 
     // async fn send(&mut self, msg: CommandRequest) -> Result<(), KvError> {
@@ -185,14 +202,14 @@ mod tests {
         let mut client = ProstClientStream::new(stream);
 
         let cmd = CommandRequest::new_hset("t1", "k1", "v1".into());
-        let res = client.execute(cmd).await.unwrap();
+        let res = client.execute_unary(&cmd).await.unwrap();
 
-        assert_res_ok(res, &[Value::default()], &[]);
+        assert_res_ok(&res, &[Value::default()], &[]);
 
         let cmd = CommandRequest::new_hget("t1", "k1");
-        let res = client.execute(cmd).await?;
+        let res = client.execute_unary(&cmd).await?;
 
-        assert_res_ok(res, &["v1".into()], &[]);
+        assert_res_ok(&res, &["v1".into()], &[]);
 
         Ok(())
     }
@@ -204,11 +221,11 @@ mod tests {
         let mut client = ProstClientStream::new(stream);
         let v: Value = Bytes::from(vec![0u8; 16384]).into();
         let cmd = CommandRequest::new_hset("t2", "k2", v.clone().into());
-        let res = client.execute(cmd).await?;
-        assert_res_ok(res, &[Value::default()], &[]);
+        let res = client.execute_unary(&cmd).await?;
+        assert_res_ok(&res, &[Value::default()], &[]);
         let cmd = CommandRequest::new_hget("t2", "k2");
-        let res = client.execute(cmd).await?;
-        assert_res_ok(res, &[v.into()], &[]);
+        let res = client.execute_unary(&cmd).await?;
+        assert_res_ok(&res, &[v.into()], &[]);
         Ok(())
     }
 

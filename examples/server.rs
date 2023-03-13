@@ -31,9 +31,11 @@ async fn main() -> Result<()> {
 
             while let Some(Ok(cmd)) = async_stream.next().await {
                 info!("Got a new command: {:?}", cmd);
-                let res = svc.execute(cmd);
+                let mut res = svc.execute(cmd);
 
-                async_stream.send(res).await.unwrap();
+                while let Some(data) = res.next().await {
+                    async_stream.send((*data).clone()).await.unwrap();
+                }
             }
             info!("Client {:?} disconnected", addr)
         });

@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
 
     //     client.send(cmd).await?;
 
-    let data = client.execute(cmd).await?;
+    let data = client.execute_unary(&cmd).await?;
 
     info!("Got response {:?}", data);
 

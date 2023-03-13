@@ -208,3 +208,68 @@ impl From<Vec<Value>> for CommandResponse {
         }
     }
 }
+
+impl CommandResponse {
+    pub fn ok() -> Self {
+        let mut result = CommandResponse::default();
+        result.status = StatusCode::OK.as_u16() as _;
+        result
+    }
+}
+
+impl From<bool> for Value {
+    fn from(b: bool) -> Self {
+        Self {
+            value: Some(value::Value::Bool(b)),
+        }
+    }
+}
+
+impl TryFrom<Value> for i64 {
+    type Error = KvError;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v.value {
+            Some(value::Value::Integer(i)) => Ok(i),
+            _ => Err(KvError::ConvertError(v, "Integer")),
+        }
+    }
+}
+
+impl Value {
+    /// 转换成 string 做错误处理
+    pub fn format(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+impl TryFrom<&Value> for i64 {
+    type Error = KvError;
+
+    fn try_from(v: &Value) -> Result<Self, Self::Error> {
+        match v.value {
+            Some(value::Value::Integer(i)) => Ok(i),
+            _ => Err(KvError::ConvertError(v.clone(), "Integer")),
+        }
+    }
+}
+
+impl TryFrom<&CommandResponse> for i64 {
+    type Error = KvError;
+
+    fn try_from(value: &CommandResponse) -> Result<Self, Self::Error> {
+        if value.status != StatusCode::OK.as_u16() as u32 {
+            return Err(KvError::ConvertError(
+                value.values.get(0).unwrap().clone(),
+                "CommandResponse",
+            ));
+        }
+        match value.values.get(0) {
+            Some(v) => v.try_into(),
+            None => Err(KvError::ConvertError(
+                value.values.get(0).unwrap().clone(),
+                "CommandResponse",
+            )),
+        }
+    }
+}

@@ -36,9 +36,10 @@ async fn main() -> Result<()> {
                 let cmd = CommandRequest::decode(&buf[..]).unwrap(); // 解码
                 info!("Got a new command {:?}", cmd);
 
-                let res = svc.execute(cmd);
+                let mut res = svc.execute(cmd);
+                let data = res.next().await.unwrap();
                 buf.clear();
-                res.encode(&mut buf).unwrap();
+                data.encode(&mut buf).unwrap();
 
                 stream.send(buf.freeze()).await.unwrap();
             }
