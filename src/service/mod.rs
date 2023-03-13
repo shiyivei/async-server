@@ -10,7 +10,6 @@ use crate::storage::SledDb;
 use crate::storage::Storage;
 use futures::stream;
 use http::StatusCode;
-use tracing_subscriber::fmt::format::debug_fn;
 
 use std::sync::Arc;
 use tracing::debug;

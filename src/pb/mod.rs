@@ -84,6 +84,29 @@ impl CommandRequest {
             })),
         }
     }
+    pub fn new_subscribe(name: impl Into<String>) -> Self {
+        Self {
+            request_data: Some(RequestData::Subscribe(Subscribe { topic: name.into() })),
+        }
+    }
+
+    pub fn new_unsubscribe(name: impl Into<String>, id: u32) -> Self {
+        Self {
+            request_data: Some(RequestData::Unsubscribe(Unsubscribe {
+                topic: name.into(),
+                id,
+            })),
+        }
+    }
+
+    pub fn new_publish(name: impl Into<String>, data: Vec<Value>) -> Self {
+        Self {
+            request_data: Some(RequestData::Publish(Publish {
+                topic: name.into(),
+                data,
+            })),
+        }
+    }
 }
 
 impl Kvpair {

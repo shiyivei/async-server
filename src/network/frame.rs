@@ -1,13 +1,12 @@
 use crate::error::KvError;
 use crate::pb::Value;
 use crate::pb::{CommandRequest, CommandResponse};
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf,Bytes, BufMut, BytesMut};
 use flate2::{read::GzDecoder, write::GzEncoder, Compression};
 use prost::Message;
 use std::io::{Read, Write};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tracing::debug;
-use tracing::info;
 
 // frame 头
 pub const LEN_LEN: usize = 4;
@@ -94,8 +93,6 @@ where
         // 解码头
         let (len, compressed) = decode_header(header);
 
-        println!("Got a frame: msg len {},compressed {}", len, compressed);
-
         // 根据是否压缩继续解码
         if compressed {
             // 解码
@@ -126,7 +123,7 @@ impl FrameCoder for CommandResponse {}
 fn decode_header(header: usize) -> (usize, bool) {
     //
     let len = header & !COMPRESSION_BIT; // 如果头长度和!COMPRESSION_BIT不相等，返回 0
-    println!("len {:?}", len);
+
     let compressed = header & COMPRESSION_BIT == COMPRESSION_BIT;
     (len, compressed)
 }

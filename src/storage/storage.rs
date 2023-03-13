@@ -3,7 +3,7 @@
 use crate::error::*;
 use crate::pb::*;
 use crate::storage::MemTable;
-pub trait Storage {
+pub trait Storage: Send + Sync + 'static {
     // 从表里取数据
     fn get(&self, table: &str, key: &str) -> Result<Option<Value>, KvError>;
     // 向表里存数据
@@ -71,27 +71,27 @@ mod tests {
         assert!(v.unwrap().is_none());
         // 再次 set 同样的 key 会更新，并返回之前的值
         let v1 = store.set("t1", "k1".into(), "v1".into());
-        assert_eq!(v1, Ok(Some("v".into())));
+        assert_eq!(v1.unwrap(), Some("v".into()));
         // get 存在的 key 会得到最新的值
         let v = store.get("t1", "k1");
-        assert_eq!(v, Ok(Some("v1".into())));
+        assert_eq!(v.unwrap(), Some("v1".into()));
 
         // get 不存在的key or 不存在的 table
-        assert_eq!(store.get("t1", "k2"), Ok(None)); // 有表无键
+        assert_eq!(store.get("t1", "k2").unwrap(), None); // 有表无键
         assert!(store.get("t2", "k1").unwrap().is_none()); // 无表
                                                            // contains 纯在的 key 返回 true，否则 false
-        assert_eq!(store.contains("t1", "k1"), Ok(true)); // contains 用在map上
-        assert_eq!(store.contains("t1", "k2"), Ok(false));
-        assert_eq!(store.contains("t2", "k1"), Ok(false));
+        assert_eq!(store.contains("t1", "k1").unwrap(), true); // contains 用在map上
+        assert_eq!(store.contains("t1", "k2").unwrap(), false);
+        assert_eq!(store.contains("t2", "k1").unwrap(), false);
         // del 存在的 key 返回删掉的值
         let v = store.del("t1", "k1");
-        assert_eq!(v, Ok(Some("v1".into())));
+        assert_eq!(v.unwrap(), Some("v1".into()));
         // del 存在的 key 返回之前的值
         let v = store.del("t1", "hello"); // 删除不存在的key
-        assert_eq!(v, Ok(None));
+        assert_eq!(v.unwrap(), None);
         // del 不存在的 key 或 table 返回 None
-        assert_eq!(Ok(None), store.del("t1", "k1"));
-        assert_eq!(Ok(None), store.del("t2", "k"));
+        assert_eq!(None, store.del("t1", "k1").unwrap());
+        assert_eq!(None, store.del("t2", "k").unwrap());
     }
 
     fn test_get_all(store: impl Storage) {

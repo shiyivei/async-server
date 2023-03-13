@@ -11,6 +11,10 @@ path = "src/server.rs"
 name = "client"
 path = "src/client.rs"
 
+[[bench]]
+name = "pubsub"
+harness = false
+
 
 [dependencies]
 anyhow = "1" # 错误处理
@@ -19,7 +23,7 @@ dashmap = "4" # 并发 HashMap
 http = "0.2" # 我们使用 HTTP status code 所以引入这个类型库
 pkg-config = "0.3.26"
 prost = "0.9" # 处理 protobuf 的代码
-serde = {version = "1.0.154",  features = ["derive"]}
+opentelemetry-jaeger = "0.15"
 sled = "0.34"
 tempfile = "3.4.0"
 thiserror = "1" # 错误定义和处理
@@ -28,7 +32,7 @@ tokio = { version = "1", features = ["full" ] } # 异步网络库
 futures = "0.3" # 提供 Stream trait
 flate2 = "1"
 async-prost = "0.3" # 支持把 protobuf 封装成 TCP frame
-tracing-subscriber = "0.3" # 日志处理
+tracing-subscriber = { version = "0.2", features = ["json", "chrono"] } # 日志处理
 certify = "0.3"
 tokio-rustls = "0.22"
 rustls = "0.20.8"
@@ -36,13 +40,19 @@ rustls-native-certs = "0.5"
 tokio-util = { version = "0.6", features = ["compat","codec"]} # tokio 和 futures 的兼容性库
 yamux = "0.9" # yamux 多路复用支持
 tokio-stream = { version = "0.1", features = ["sync"] } # 处理 stream
+serde = { version = "1", features = ["derive"] } # 序列化/反序列化
+toml = "0.5" # toml 支持
+rand = "0.8" # 随机数处理
+criterion = { version = "0.3", features = ["async_futures", "async_tokio", "html_reports"] }
+tracing-opentelemetry = "0.15" # opentelemetry 支持
+tracing-appender = "0.1" # 文件日志
 
 [dev-dependencies]
 anyhow = "1" # 错误处理
 async-prost = "0.3" # 支持把 protobuf 封装成 TCP frame
 futures = "0.3" # 提供 Stream trait
 
-tracing-subscriber = "0.3" # 日志处理
+
 
 [build-dependencies]
 prost-build = "0.9" # 编译 protobuf

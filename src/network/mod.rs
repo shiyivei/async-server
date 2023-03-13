@@ -5,6 +5,7 @@ mod tls;
 use super::*;
 use crate::error::KvError;
 pub use frame::*;
+pub use multiplex::*;
 use prost::Message;
 pub use stream::*;
 
@@ -20,9 +21,9 @@ use tracing::info;
 //     inner: S,
 //     service: Service,
 // }
-pub struct ProstServerStream<S> {
+pub struct ProstServerStream<S, Store> {
     inner: ProstStream<S, CommandRequest, CommandResponse>,
-    service: Service,
+    service: Service<Store>,
 }
 
 // pub struct ProstClientStream<S> {
@@ -32,11 +33,12 @@ pub struct ProstClientStream<S> {
     inner: ProstStream<S, CommandResponse, CommandRequest>,
 }
 
-impl<S> ProstServerStream<S>
+impl<S, Store> ProstServerStream<S, Store>
 where
-    S: AsyncRead + AsyncWrite + Send + Unpin,
+    S: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+    Store: Storage,
 {
-    pub fn new(stream: S, service: Service) -> Self {
+    pub fn new(stream: S, service: Service<Store>) -> Self {
         Self {
             inner: ProstStream::new(stream),
             service,

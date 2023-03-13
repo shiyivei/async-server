@@ -9,7 +9,7 @@ use sled;
 use std::io::Error as IoError;
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum KvError {
     // 使用字段属性定义错误内容
     #[error("Not found for table: {0},key: {1}")]
@@ -20,6 +20,9 @@ pub enum KvError {
     ConvertError(Value, &'static str),
     #[error("Cannot process command {0} with table: {1}, key: {2}. Error: {}")]
     StorageError(&'static str, String, String, String),
+
+    #[error("I/O error")]
+    IoError(#[from] std::io::Error),
 
     //使用第三发库的具体Error类型
     #[error("Failed to encode protobuf message")]
@@ -45,6 +48,11 @@ pub enum KvError {
 
     #[error("TLS error")]
     TlsError(#[from] tokio_rustls::rustls::TLSError),
+
+    // #[error("Yamux Connection error")]
+    // YamuxConnectionError(#[from] yamux::ConnectionError),
+    #[error("Parse config error")]
+    ConfigError(#[from] toml::de::Error),
 }
 
 // impl From<FmtError> for KvError {
@@ -53,11 +61,11 @@ pub enum KvError {
 //     }
 // }
 
-impl From<IoError> for KvError {
-    fn from(value: IoError) -> Self {
-        KvError::InvalidCommand("Invalid Command".to_string())
-    }
-}
+// impl From<IoError> for KvError {
+//     fn from(value: IoError) -> Self {
+//         KvError::InvalidCommand("Invalid Command".to_string())
+//     }
+// }
 
 // impl From<sled::Error> for KvError {
 //     fn from(value: sled::Error) -> Self {

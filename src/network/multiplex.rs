@@ -1,9 +1,11 @@
 // 使用 yamux 做多路复用
 
+use crate::ProstClientStream;
 use futures::{future, Future, TryStreamExt};
 use std::marker::PhantomData;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_util::compat::{Compat, FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
+use tracing::info;
 use yamux::{Config, Connection, ConnectionError, Control, Mode, WindowUpdateMode};
 // yamux 的控制结构
 pub struct YamuxCtrl<S> {
@@ -62,8 +64,11 @@ where
     }
 
     // 辅助函数，打开tcp 六
-    async fn open_stream(&mut self) -> Result<Compat<yamux::Stream>, ConnectionError> {
+    pub async fn open_stream(
+        &mut self,
+    ) -> Result<ProstClientStream<Compat<yamux::Stream>>, ConnectionError> {
         let stream = self.ctrl.open_stream().await?;
-        Ok(stream.compat())
+
+        Ok(ProstClientStream::new(stream.compat()))
     }
 }

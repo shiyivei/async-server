@@ -29,38 +29,36 @@ pub struct TlsClientConnector {
 
 impl TlsClientConnector {
     // 加载client，ca
+    #[instrument(name = "tls_connector_new", skip_all)]
     pub fn new(
-        domain: impl Into<String>,
+        domain: impl Into<String> + std::fmt::Debug,
         identity: Option<(&str, &str)>,
         server_ca: Option<&str>,
     ) -> Result<Self, KvError> {
         let mut config = ClientConfig::new();
-
+        // 如果有客户端证书，加载之
         if let Some((cert, key)) = identity {
             let certs = load_certs(cert)?;
             let key = load_key(key)?;
             config.set_single_client_cert(certs, key)?;
-        }
-
-        //加载本地信任的根证书链
+        } // 加载本地信任的根证书链
         config.root_store = match rustls_native_certs::load_native_certs() {
             Ok(store) | Err((Some(store), _)) => store,
             Err((None, error)) => return Err(error.into()),
         };
-
-        //如果有签署服务器的CA证书,加载它，这样服务器证书不在根证书链
+        // 如果有签署服务器的 CA 证书，则加载它，这样服务器证书不在根证书链
         // 但是这个 CA 证书能验证它，也可以
         if let Some(cert) = server_ca {
             let mut buf = Cursor::new(cert);
             config.root_store.add_pem_file(&mut buf).unwrap();
         }
-
         Ok(Self {
             config: Arc::new(config),
             domain: Arc::new(domain.into()),
         })
     }
 
+    #[instrument(name = "tls_client_connect", skip_all)]
     // 触发 TLS 协议，把底层的stream 转换成 TLS stream
     pub async fn connect<S>(&self, stream: S) -> Result<ClientTlsStream<S>, KvError>
     where
@@ -78,6 +76,7 @@ impl TlsClientConnector {
 }
 
 impl TlsServerAcceptor {
+    #[instrument(name = "tls_acceptor_new", skip_all)]
     //加载 server cert / CA cert， 生成 ServerConfig
     pub fn new(cert: &str, key: &str, client_ca: Option<&str>) -> Result<Self, KvError> {
         let certs = load_certs(cert)?;
@@ -109,6 +108,8 @@ impl TlsServerAcceptor {
             inner: Arc::new(config),
         })
     }
+
+    #[instrument(name = "tls_server_accept", skip_all)]
 
     // 触发 TLS协议，把底层的stream 转换成 TLS stream
 

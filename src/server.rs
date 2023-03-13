@@ -1,61 +1,52 @@
+use std::env;
+
 use anyhow::Result;
-use async_prost::AsyncProstStream;
-use db_server::{CommandRequest, CommandResponse, MemTable, Service, ServiceInner};
-use db_server::{ProstServerStream, TlsServerAcceptor};
-use futures::prelude::*;
-use tokio::net::TcpListener;
-use tracing::info;
+use db_server::{start_server_with_config, RotationConfig, ServerConfig};
+use tokio::fs;
+use tracing::span;
+use tracing_subscriber::{
+    fmt::{self, format},
+    layer::SubscriberExt,
+    prelude::*,
+    EnvFilter,
+};
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    // 初始化日志
-    tracing_subscriber::fmt::init();
+    let config = match env::var("KV_SERVER_CONFIG") {
+        Ok(path) => fs::read_to_string(&path).await?,
+        Err(_) => include_str!("../fixtures/server.conf").to_string(),
+    };
+    let config: ServerConfig = toml::from_str(&config)?;
 
-    // 监听地址
-    let addr = "127.0.0.1:9527";
+    let tracer = opentelemetry_jaeger::new_pipeline()
+        .with_service_name("kv-server")
+        .install_simple()?;
+    let opentelemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
-    // 读取配置
+    // 添加
+    let log = &config.log;
+    let file_appender = match log.rotation {
+        RotationConfig::Hourly => tracing_appender::rolling::hourly(&log.path, "server.log"),
+        RotationConfig::Daily => tracing_appender::rolling::daily(&log.path, "server.log"),
+        RotationConfig::Never => tracing_appender::rolling::never(&log.path, "server.log"),
+    };
 
-    let server_cert: &str = include_str!("../fixtures/server.cert");
-    let server_key: &str = include_str!("../fixtures/server.key");
+    let (non_blocking, _guard1) = tracing_appender::non_blocking(file_appender);
+    let fmt_layer = fmt::layer()
+        .event_format(format().compact())
+        .with_writer(non_blocking);
 
-    // 验证安全(接收器，也是一个监听者)
-    let acceptor = TlsServerAcceptor::new(server_cert, server_key, None)?;
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(fmt_layer)
+        .with(opentelemetry)
+        .init();
 
-    // 建表（初始化db）
-    let service: Service = ServiceInner::new(MemTable::default()).into();
+    let root = span!(tracing::Level::INFO, "app_start", work_units = 2);
+    let _enter = root.enter();
 
-    // 监听请求
-    let listener = TcpListener::bind(addr).await?;
-    info!("Start listening on {:?}", addr);
+    start_server_with_config(&config).await?;
 
-    loop {
-        let tls = acceptor.clone();
-        // 拿到tcp数据流
-        let (stream, addr) = listener.accept().await?;
-        info!("Client {:?} connected", addr);
-
-        //    let svc = service.clone();
-
-        //    tokio::spawn(async move {
-        //        let mut async_stream =
-        //            AsyncProstStream::<_, CommandRequest, CommandResponse, _>::from(stream).for_async();
-
-        //        while let Some(Ok(cmd)) = async_stream.next().await {
-        //            info!("Got a new command: {:?}", cmd);
-        //            let res = svc.execute(cmd);
-
-        //            async_stream.send(res).await.unwrap();
-        //        }
-        //        info!("Client {:?} disconnected", addr)
-        //    });
-
-        // 处理数据流（验证客户端）
-        let stream = tls.accept(stream).await?;
-        let stream = ProstServerStream::new(stream, service.clone());
-        tokio::spawn(async move {
-            {
-                stream.process().await
-            }
-        });
-    }
+    Ok(())
 }
